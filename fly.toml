@@ -1,0 +1,39 @@
+# fly.toml - Unyvox Fly.io Configuration
+# Generato per deployment permanente con URL stabile
+
+app = "unyvox"
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  HOSTNAME = "0.0.0.0"
+  DATABASE_URL = "file:/data/dev.db"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 250
+    soft_limit = 200
+
+[mounts]
+  source = "unyvox_data"
+  destination = "/data"
+
+[[statics]]
+  guest_path = "/app/public"
+  url_prefix = "/"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

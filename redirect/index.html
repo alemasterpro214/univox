@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unyvox - Reindirizzamento...</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .container {
+            padding: 40px;
+            max-width: 500px;
+        }
+        .logo { font-size: 64px; margin-bottom: 20px; }
+        h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle { color: rgba(255,255,255,0.7); margin-bottom: 30px; }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #00d2ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 30px auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .note {
+            margin-top: 30px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.4);
+        }
+        .error {
+            color: #ff6b6b;
+            margin-top: 20px;
+        }
+        .manual-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            color: white;
+            text-decoration: none;
+            border-radius: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🚀</div>
+        <h1>Unyvox</h1>
+        <p class="subtitle">Connessione al server attivo...</p>
+        <div class="spinner"></div>
+        <p class="note">Sto cercando il link temporaneo attuale tramite DuckDNS.</p>
+        <p id="error" class="error" style="display: none;"></p>
+        <a id="manual-link" class="manual-link" href="#" style="display: none;">Apri Unyvox →</a>
+    </div>
+
+    <script>
+        (function() {
+            // Questo dominio viene sostituito da setup-github-redirect.sh se necessario.
+            var DUCKDNS_DOMAIN = 'unyvox.duckdns.org';
+            var DOH_URL = 'https://dns.google/resolve?name=' + encodeURIComponent(DUCKDNS_DOMAIN) + '&type=TXT';
+            var MAX_RETRIES = 15;
+            var DELAY_MS = 4000;
+
+            function tryRedirect(attempt) {
+                fetch(DOH_URL)
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        if (!data.Answer || !data.Answer.length) {
+                            throw new Error('Nessun record TXT trovato');
+                        }
+                        var url = data.Answer[0].data.replace(/"/g, '').trim();
+                        if (!url || !url.startsWith('http')) {
+                            throw new Error('URL non valido nel record TXT');
+                        }
+                        window.location.replace(url);
+                    })
+                    .catch(function(err) {
+                        console.error('Errore lettura DNS TXT (tentativo ' + attempt + '):', err);
+                        if (attempt < MAX_RETRIES) {
+                            setTimeout(function() { tryRedirect(attempt + 1); }, DELAY_MS);
+                        } else {
+                            var errorEl = document.getElementById('error');
+                            if (errorEl) {
+                                errorEl.textContent = 'Impossibile recuperare il link attivo. Assicurati che il server sia avviato con ./start-public.sh e riprova tra qualche minuto.';
+                                errorEl.style.display = 'block';
+                            }
+                            var manual = document.getElementById('manual-link');
+                            if (manual) {
+                                manual.href = 'http://' + DUCKDNS_DOMAIN;
+                                manual.style.display = 'inline-block';
+                            }
+                        }
+                    });
+            }
+
+            tryRedirect(1);
+        })();
+    </script>
+</body>
+</html>

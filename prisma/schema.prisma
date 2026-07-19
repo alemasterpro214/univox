@@ -1,0 +1,440 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  username       String    @unique
+  email          String    @unique
+  passwordHash   String?   @map("password_hash")
+  name           String?
+  bio            String    @default("")
+  website        String    @default("")
+  avatar         String    @default("")
+  role           String    @default("USER") @map("role")
+  lastIp         String?   @map("last_ip")
+  deviceId       String?   @map("device_id")
+  activeSessionId String?  @map("active_session_id")
+  isPrivate      Boolean   @default(false) @map("is_private")
+  isVerified     Boolean   @default(false) @map("is_verified")
+  isBusiness     Boolean   @default(false) @map("is_business")
+  status         String    @default("ONLINE") @map("status")
+  lastActiveAt   DateTime? @map("last_active_at")
+  activeConversationId String? @map("active_conversation_id")
+  strikes        Int       @default(0) @map("strikes")
+  lastStrikeAt   DateTime? @map("last_strike_at")
+  bannedAt       DateTime? @map("banned_at")
+  banReason      String?   @map("ban_reason")
+  canPostUntil   DateTime? @map("can_post_until")
+  canCommentUntil DateTime? @map("can_comment_until")
+  canLikeUntil   DateTime? @map("can_like_until")
+  canMessageUntil DateTime? @map("can_message_until")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  accounts       Account[]
+  sessions       Session[]
+  posts          Post[]
+  stories        Story[]
+  reels          Reel[]
+  likes          Like[]
+  comments       Comment[]
+  interests      UserInterest[]
+
+  sentMessages   Message[] @relation("SentMessages")
+  hiddenMessages HiddenMessage[]
+  notifications  Notification[] @relation("NotificationsReceived")
+  sentNotifications Notification[] @relation("NotificationsSent")
+
+  followers      Follow[]  @relation("Following")
+  following      Follow[]  @relation("Followers")
+  followRequestsSent FollowRequest[] @relation("FollowRequestsSent")
+  followRequestsReceived FollowRequest[] @relation("FollowRequestsReceived")
+  postViews      PostView[]
+  shares         Share[]
+  playlists      Playlist[]
+
+  conversationMembers ConversationMember[]
+  callsMade           Call[] @relation("CallsMade")
+  callParticipants    CallParticipant[] @relation("CallParticipants")
+
+  @@map("users")
+}
+
+model UserInterest {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  keyword    String   @map("keyword")
+  weight     Float    @default(0) @map("weight")
+  confidence Int      @default(1) @map("confidence")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, keyword])
+  @@index([userId, weight(sort: Desc)])
+  @@map("user_interests")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+model Post {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  caption       String    @default("")
+  location      String    @default("")
+  isAiGenerated Boolean   @default(false) @map("is_ai_generated")
+  visibility    String    @default("public") @map("visibility")
+  expiresAt     DateTime? @map("expires_at")
+  isUnavailable Boolean   @default(false) @map("is_unavailable")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media    PostMedia[]
+  keywords PostKeyword[]
+  likes    Like[]
+  comments Comment[]
+  views    PostView[]
+  shares   Share[]
+  savedPosts SavedPost[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([isUnavailable])
+  @@index([visibility])
+  @@map("posts")
+}
+
+model PostKeyword {
+  id      String @id @default(cuid())
+  postId  String @map("post_id")
+  keyword String
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, keyword])
+  @@index([keyword])
+  @@map("post_keywords")
+}
+
+model PostMedia {
+  id       String @id @default(cuid())
+  postId   String @map("post_id")
+  url      String
+  type     String @default("image")
+  order    Int    @default(0)
+  filter   String @default("")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("post_media")
+}
+
+model Story {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  url       String
+  type      String   @default("image")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  views StoryView[]
+
+  @@index([expiresAt])
+  @@index([userId])
+  @@map("stories")
+}
+
+model StoryView {
+  id        String   @id @default(cuid())
+  storyId   String   @map("story_id")
+  userId    String   @map("user_id")
+  viewedAt  DateTime @default(now()) @map("viewed_at")
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@map("story_views")
+}
+
+model Reel {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  videoUrl  String   @map("video_url")
+  caption   String   @default("")
+  audioId   String   @default("") @map("audio_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reels")
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@map("likes")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  postId    String   @map("post_id")
+  parentId  String?  @map("parent_id")
+  text      String
+  gifUrl    String?  @map("gif_url")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent  Comment? @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("Replies")
+
+  @@index([postId])
+  @@index([postId, parentId])
+  @@map("comments")
+}
+
+model Playlist {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  name      String   @default("Post Salvati")
+  isPrivate Boolean  @default(true) @map("is_private")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts SavedPost[]
+
+  @@index([userId])
+  @@map("playlists")
+}
+
+model SavedPost {
+  id         String   @id @default(cuid())
+  playlistId String   @map("playlist_id")
+  postId     String   @map("post_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, postId])
+  @@index([postId])
+  @@map("saved_posts")
+}
+
+
+model Conversation {
+  id        String   @id @default(cuid())
+  name      String?  @map("name")
+  type      String   @default("direct")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members  ConversationMember[]
+  messages Message[]
+  calls    Call[]
+
+  @@map("conversations")
+}
+
+model ConversationMember {
+  id             String    @id @default(cuid())
+  conversationId String    @map("conversation_id")
+  userId         String    @map("user_id")
+  lastReadAt     DateTime? @map("last_read_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_members")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String   @map("conversation_id")
+  senderId       String   @map("sender_id")
+  content        String
+  type           String   @default("text")
+  replyToId      String?  @map("reply_to_id")
+  isDeletedForAll Boolean @default(false) @map("is_deleted_for_all")
+  deletedAt      DateTime? @map("deleted_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo      Message?     @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]    @relation("MessageReplies")
+  hiddenFor    HiddenMessage[]
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+model HiddenMessage {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  messageId String   @map("message_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId])
+  @@index([userId])
+  @@map("hidden_messages")
+}
+
+model Call {
+  id             String   @id @default(cuid())
+  conversationId String   @map("conversation_id")
+  callerId       String   @map("caller_id")
+  type           String   @default("audio")
+  status         String   @default("ringing")
+  startedAt      DateTime? @map("started_at")
+  endedAt        DateTime? @map("ended_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  caller       User            @relation("CallsMade", fields: [callerId], references: [id], onDelete: Cascade)
+  participants CallParticipant[]
+
+  @@index([conversationId])
+  @@index([status])
+  @@map("calls")
+}
+
+model CallParticipant {
+  id        String    @id @default(cuid())
+  callId    String    @map("call_id")
+  userId    String    @map("user_id")
+  status    String    @default("invited")
+  joinedAt  DateTime? @map("joined_at")
+  leftAt    DateTime? @map("left_at")
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user User @relation("CallParticipants", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, userId])
+  @@index([callId])
+  @@index([userId])
+  @@map("call_participants")
+}
+
+model Notification {
+  id         String  @id @default(cuid())
+  userId     String  @map("user_id")
+  type       String
+  fromUserId String  @map("from_user_id")
+  postId     String? @map("post_id")
+  read       Boolean @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user     User @relation("NotificationsReceived", fields: [userId], references: [id], onDelete: Cascade)
+  fromUser User @relation("NotificationsSent", fields: [fromUserId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([fromUserId])
+  @@map("notifications")
+}
+
+model FollowRequest {
+  id          String   @id @default(cuid())
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  status      String   @default("pending")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("FollowRequestsSent", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("FollowRequestsReceived", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follow_requests")
+}
+
+model PostView {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId])
+  @@map("post_views")
+}
+
+model Share {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("shares")
+}

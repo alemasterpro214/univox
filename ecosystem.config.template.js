@@ -1,0 +1,36 @@
+module.exports = {
+  apps: [
+    {
+      name: "unyvox-server",
+      script: "./server.mjs",
+      cwd: "{{SCRIPT_DIR}}",
+      instances: 1,
+      autorestart: true,
+      restart_delay: 5000,
+      max_restarts: 10,
+      min_uptime: "10s",
+      log_file: "{{LOG_DIR}}/server.log",
+      out_file: "{{LOG_DIR}}/server.out.log",
+      error_file: "{{LOG_DIR}}/server.error.log",
+      time: true,
+      env: {
+        NODE_ENV: "production",
+      },
+    },
+    {
+      name: "unyvox-tunnel",
+      script: "{{CLOUDFLARED_PATH}}",
+      args: "tunnel --url http://localhost:3000",
+      cwd: "{{SCRIPT_DIR}}",
+      instances: 1,
+      autorestart: true,
+      restart_delay: 5000,
+      max_restarts: 10,
+      min_uptime: "10s",
+      log_file: "{{LOG_DIR}}/tunnel.log",
+      out_file: "{{LOG_DIR}}/tunnel.out.log",
+      error_file: "{{LOG_DIR}}/tunnel.error.log",
+      time: true,
+    },
+  ],
+};
